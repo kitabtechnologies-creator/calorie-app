@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 
 type Profile = {
   id: string;
+  name?: string;
   target_calories: number;
   target_protein_g: number;
   target_carbs_g: number;
@@ -38,9 +39,7 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** Smoothly animates a number toward its latest value — used for every
- * calorie/macro figure on the dashboard so updates feel alive instead
- * of popping instantly. */
+/** Smoothly animates a number toward its latest value */
 function useCountUp(value: number, duration = 700) {
   const [display, setDisplay] = useState(value);
   const prev = useRef(value);
@@ -66,19 +65,18 @@ function useCountUp(value: number, duration = 700) {
     return () => {
       if (raf.current) cancelAnimationFrame(raf.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   return display;
 }
 
 const MACROS: { key: 'protein' | 'carbs' | 'fat'; label: string; from: string; to: string; targetKey: keyof Profile }[] = [
-  { key: 'protein', label: 'Protein', from: '#3fd0ff', to: '#4f9dff', targetKey: 'target_protein_g' },
-  { key: 'carbs', label: 'Carbs', from: '#ffd15c', to: '#ff9f4a', targetKey: 'target_carbs_g' },
-  { key: 'fat', label: 'Fat', from: '#ff5cb8', to: '#b45bff', targetKey: 'target_fat_g' },
+  { key: 'protein', label: 'Protein', from: '#fb923c', to: '#f97316', targetKey: 'target_protein_g' }, // Orange
+  { key: 'carbs', label: 'Carbs', from: '#fcd34d', to: '#eab308', targetKey: 'target_carbs_g' },       // Yellow
+  { key: 'fat', label: 'Fat', from: '#a3e635', to: '#84cc16', targetKey: 'target_fat_g' },             // Lime
 ];
 
-function MacroPill({
+function MacroCapsule({
   label,
   value,
   target,
@@ -93,21 +91,23 @@ function MacroPill({
 }) {
   const animated = useCountUp(value);
   const pct = target ? Math.min(100, (value / target) * 100) : 0;
+  
   return (
-    <div className="glass-pill rounded-2xl p-3">
-      <p className="font-cond text-[11px] text-white/50 tracking-wide">{label}</p>
-      <p className="font-display text-lg text-white">
-        {Math.round(animated)}
-        <span className="text-white/40 text-xs font-cond">/{target || '—'}g</span>
-      </p>
-      <div className="h-1.5 mt-2 rounded-full bg-white/10 overflow-hidden">
-        <div
+    <div className="bg-white/50 backdrop-blur-xl rounded-[32px] p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/60 transition-transform hover:-translate-y-1.5 duration-300">
+      <div className="flex justify-between items-baseline mb-3">
+        <p className="text-[10px] uppercase font-bold tracking-widest text-neutral-400">{label}</p>
+        <p className="font-semibold text-lg text-neutral-800">
+          {Math.round(animated)}
+          <span className="text-neutral-400 text-xs font-medium ml-1">/{target || '—'}g</span>
+        </p>
+      </div>
+      <div className="h-2.5 w-full rounded-full bg-neutral-100/80 overflow-hidden inner-shadow">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: 1, ease: "easeOut" }}
           className="h-full rounded-full"
-          style={{
-            width: `${pct}%`,
-            background: `linear-gradient(90deg, ${from}, ${to})`,
-            transition: 'width 0.8s cubic-bezier(0.22, 1, 0.36, 1)',
-          }}
+          style={{ background: `linear-gradient(90deg, ${from}, ${to})` }}
         />
       </div>
     </div>
@@ -134,6 +134,7 @@ export default function DashboardPage() {
 
   const [orbOpen, setOrbOpen] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -154,7 +155,6 @@ export default function DashboardPage() {
       setLogs(l || []);
       setLoading(false);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const totals = useMemo(
@@ -171,15 +171,13 @@ export default function DashboardPage() {
     [logs]
   );
 
-  const target = profile?.target_calories ?? 0;
+  const target = profile?.target_calories ?? 2000;
   const pct = target > 0 ? Math.max(0, Math.min(1, totals.calories / target)) : 0;
-  const remaining = profile ? Math.max(0, target - Math.round(totals.calories)) : 0;
+  const remaining = Math.max(0, target - Math.round(totals.calories));
 
   const animatedCalories = useCountUp(totals.calories);
-  const animatedRemaining = useCountUp(remaining);
-
-  // Ring geometry
-  const R = 92;
+  
+  const R = 110;
   const CIRC = 2 * Math.PI * R;
 
   async function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -217,14 +215,12 @@ export default function DashboardPage() {
 
   function pingAdded() {
     setJustAdded(true);
-    setTimeout(() => setJustAdded(false), 900);
+    setTimeout(() => setJustAdded(false), 2000);
   }
 
   async function confirmAnalysis() {
     if (!pendingAnalysis) return;
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
     const name = pendingAnalysis.foods.map((f) => f.name).join(', ');
@@ -264,9 +260,7 @@ export default function DashboardPage() {
   }
 
   async function addSearchResult(food: any, grams: number) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const factor = grams / 100;
 
@@ -291,6 +285,7 @@ export default function DashboardPage() {
     }
     setSearchResults([]);
     setSearchQuery('');
+    setSearchOpen(false);
   }
 
   async function removeLog(id: string) {
@@ -300,151 +295,239 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <main className="aurora-page flex items-center justify-center">
-        <div className="relative z-10 flex flex-col items-center gap-4">
-          <div className="w-14 h-14 rounded-full bg-orb-rainbow animate-spin-slow blur-[1px]" />
-          <p className="font-cond text-white/60 tracking-[0.2em] text-xs">LOADING YOUR DAY…</p>
+      <main className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-full border-4 border-orange-200 border-t-orange-500 animate-spin" />
+          <p className="text-xs uppercase tracking-widest font-bold text-neutral-400">Waking up AI...</p>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="aurora-page">
-      {/* Ambient gradient mesh background */}
-      <div className="fixed inset-0 bg-aurora-mesh opacity-90 pointer-events-none" />
-      <div className="fixed -top-40 -left-40 w-[420px] h-[420px] rounded-full bg-coral/20 blur-[110px] animate-glow-pulse pointer-events-none" />
-      <div className="fixed -bottom-40 -right-24 w-[420px] h-[420px] rounded-full bg-indigo/25 blur-[110px] animate-glow-pulse pointer-events-none" style={{ animationDelay: '1.4s' }} />
+    <main className="min-h-screen relative overflow-hidden bg-[#FAF8F5] selection:bg-orange-200 selection:text-orange-900">
+      {/* Premium Layered Background */}
+      <div className="fixed inset-0 -z-50 pointer-events-none">
+        <motion.div 
+          animate={{ scale: [1, 1.05, 1], rotate: [0, 5, 0] }}
+          transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+          className="absolute top-[-20%] left-[-10%] w-[80vw] h-[80vw] rounded-full bg-gradient-to-br from-orange-300/20 to-yellow-300/10 blur-[120px]" 
+        />
+        <motion.div 
+          animate={{ scale: [1, 1.1, 1], rotate: [0, -5, 0] }}
+          transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+          className="absolute bottom-[-10%] right-[-10%] w-[70vw] h-[70vw] rounded-full bg-gradient-to-tr from-lime-300/20 to-yellow-200/20 blur-[100px]" 
+        />
+        {/* Subtle Paper Grain */}
+        <div className="absolute inset-0 opacity-[0.025] mix-blend-multiply bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPgo8cmVjdCB3aWR0aD0iNCIgaGVpZHRoPSI0IiBmaWxsPSIjMDAwIiBmaWxsLW9wYWNpdHk9Ii41Ii8+Cjwvc3ZnPg==')]" />
+      </div>
 
-      <div className="relative z-10 px-4 pb-32 pt-8 max-w-lg mx-auto">
-        {/* Header */}
-        <header className="flex items-center justify-between mb-7">
-          <div>
-            <p className="font-cond tracking-[0.35em] text-white/50 text-[11px]">TODAY</p>
-            <h1 className="font-display text-2xl bg-clip-text text-transparent bg-orb-rainbow">Daily Value</h1>
-          </div>
-          <nav className="flex items-center gap-4 font-cond text-sm text-white/80">
-            <Link href="/history" className="glass-pill px-3 py-1.5 rounded-full hover:text-white transition">
-              History
-            </Link>
+      <div className="relative z-10 px-6 pt-12 pb-32 max-w-lg mx-auto space-y-10">
+        
+        {/* Top Header & AI Insight */}
+        <header className="space-y-3">
+          <div className="flex justify-between items-start">
+            <h1 className="text-4xl font-light text-neutral-400 tracking-tight">
+              Good Morning,<br />
+              <span className="font-semibold text-neutral-900">{profile?.name || 'Sunnat'}</span>
+            </h1>
             <button
               onClick={async () => {
                 await supabase.auth.signOut();
                 window.location.href = '/login';
               }}
-              className="text-white/40 hover:text-white/70 transition"
+              className="text-xs font-bold uppercase tracking-wider text-neutral-400 hover:text-orange-500 transition-colors"
             >
-              Sign out
+              Log Out
             </button>
-          </nav>
+          </div>
+          <p className="text-lg font-medium text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-500">
+            {remaining > 0 
+              ? `You're ${remaining} kcal away from today's goal.`
+              : `You've perfectly met your nutrition goals today.`}
+          </p>
         </header>
 
-        {/* Hero: liquid gradient calorie ring */}
-        <motion.section
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="glass-card rounded-glass p-6 mb-5 flex flex-col items-center"
+        {/* Week Strip Component */}
+        <section className="flex justify-between items-center bg-white/40 backdrop-blur-md rounded-full p-2 border border-white/60 shadow-sm">
+          {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, idx) => {
+            const isToday = idx === new Date().getDay() - 1; // Simplistic today logic
+            return (
+              <div 
+                key={idx} 
+                className={`w-10 h-10 flex items-center justify-center rounded-full text-sm font-bold transition-all ${
+                  isToday 
+                    ? 'bg-gradient-to-tr from-orange-400 to-yellow-400 text-white shadow-md ring-2 ring-white scale-110' 
+                    : 'text-neutral-400 hover:bg-white/50'
+                }`}
+              >
+                {day}
+              </div>
+            );
+          })}
+        </section>
+
+        {/* Hero Liquid Rainbow Calorie Ring */}
+        <motion.section 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex justify-center py-4"
         >
-          <div className="relative w-56 h-56 flex items-center justify-center animate-breathe">
-            {/* soft rotating glow behind the ring */}
-            <div className="absolute inset-[-14px] rounded-full bg-ring-rainbow blur-2xl opacity-40 animate-spin-slow" />
-            <svg viewBox="0 0 200 200" className="relative w-full h-full -rotate-90">
+          <div className="relative w-[280px] h-[280px] flex items-center justify-center">
+            {/* Soft Ambient Glow Behind Ring */}
+            <motion.div 
+              animate={{ scale: [1, 1.05, 1], opacity: [0.3, 0.5, 0.3] }}
+              transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute inset-[-20px] rounded-full bg-gradient-to-tr from-orange-400 via-yellow-400 to-lime-400 blur-3xl opacity-30" 
+            />
+            
+            <svg viewBox="0 0 240 240" className="relative w-full h-full -rotate-90 drop-shadow-sm">
               <defs>
-                <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#ff6b6b" />
-                  <stop offset="20%" stopColor="#ffd15c" />
-                  <stop offset="40%" stopColor="#4ade9a" />
-                  <stop offset="60%" stopColor="#3fd0ff" />
-                  <stop offset="80%" stopColor="#7c6bff" />
-                  <stop offset="100%" stopColor="#ff5cb8" />
+                <linearGradient id="liquidRing" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#f97316" />   {/* Orange 500 */}
+                  <stop offset="50%" stopColor="#facc15" />  {/* Yellow 400 */}
+                  <stop offset="100%" stopColor="#84cc16" /> {/* Lime 500 */}
                 </linearGradient>
               </defs>
-              <circle cx="100" cy="100" r={R} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="14" />
-              <circle
-                cx="100"
-                cy="100"
+              {/* Background Track */}
+              <circle cx="120" cy="120" r={R} fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="16" />
+              {/* Progress Track */}
+              <motion.circle
+                cx="120"
+                cy="120"
                 r={R}
                 fill="none"
-                stroke="url(#ringGradient)"
-                strokeWidth="14"
+                stroke="url(#liquidRing)"
+                strokeWidth="16"
                 strokeLinecap="round"
                 strokeDasharray={CIRC}
-                strokeDashoffset={CIRC * (1 - pct)}
-                style={{ transition: 'stroke-dashoffset 0.9s cubic-bezier(0.22, 1, 0.36, 1)' }}
+                initial={{ strokeDashoffset: CIRC }}
+                animate={{ strokeDashoffset: CIRC * (1 - pct) }}
+                transition={{ duration: 1.5, ease: "easeOut" }}
               />
             </svg>
+            
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <p className="font-cond tracking-[0.25em] text-white/45 text-[10px] mb-1">TODAY'S CALORIES</p>
-              <p className="font-display text-4xl text-glow">{Math.round(animatedCalories)}</p>
-              <p className="font-cond text-white/50 text-sm mt-0.5">/ {target || '—'} kcal</p>
-              <p className="font-cond text-xs mt-2 px-3 py-1 rounded-full glass-pill text-white/70">
-                {Math.round(animatedRemaining)} left
-              </p>
+              <motion.span 
+                key={animatedCalories}
+                initial={{ y: -5, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                className="text-6xl font-black text-neutral-800 tracking-tighter tabular-nums"
+              >
+                {Math.round(animatedCalories)}
+              </motion.span>
+              <span className="text-xs font-bold uppercase tracking-widest text-neutral-400 mt-1">
+                / {target} Goal
+              </span>
             </div>
-          </div>
-
-          {/* Macro pills */}
-          <div className="grid grid-cols-3 gap-3 w-full mt-6">
-            {MACROS.map((m) => (
-              <MacroPill
-                key={m.key}
-                label={m.label}
-                value={totals[m.key]}
-                target={(profile?.[m.targetKey] as number | undefined) ?? 0}
-                from={m.from}
-                to={m.to}
-              />
-            ))}
           </div>
         </motion.section>
 
-        {/* Search a food */}
-        <motion.section
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.05 }}
-          className="glass-card rounded-glass p-4 mb-5"
-        >
+        {/* Nutrient Capsules */}
+        <section className="grid grid-cols-3 gap-4">
+          {MACROS.map((m) => (
+            <MacroCapsule
+              key={m.key}
+              label={m.label}
+              value={totals[m.key]}
+              target={(profile?.[m.targetKey] as number | undefined) ?? 0}
+              from={m.from}
+              to={m.to}
+            />
+          ))}
+        </section>
+
+        {/* AI Corrections / Confirm Analysis */}
+        <AnimatePresence>
+          {pendingAnalysis && (
+            <motion.section
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95, filter: "blur(8px)" }}
+              className="bg-white/70 backdrop-blur-xl rounded-[2rem] p-6 shadow-lg border border-white relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-400 via-yellow-400 to-lime-400" />
+              <h3 className="text-xl font-bold text-neutral-800 mb-1">We detected your meal</h3>
+              <p className="text-sm font-medium text-neutral-500 mb-4">
+                Confidence: {pendingAnalysis.accuracy}% • {pendingAnalysis.total.calories} kcal
+              </p>
+              
+              <div className="flex flex-wrap gap-2 mb-5">
+                {pendingAnalysis.foods.map((f, i) => (
+                  <div key={i} className="bg-orange-100 text-orange-800 text-sm font-semibold px-3 py-1.5 rounded-full border border-orange-200">
+                    {f.name} <span className="opacity-50 ml-1">{f.estimated_weight_g}g</span>
+                  </div>
+                ))}
+              </div>
+
+              {pendingAnalysis.recommendation && (
+                <p className="text-sm text-neutral-600 bg-white/50 p-3 rounded-2xl border border-white mb-5 italic">
+                  "{pendingAnalysis.recommendation}"
+                </p>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={confirmAnalysis}
+                  className="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold py-3 rounded-2xl shadow-md hover:shadow-lg transition-all active:scale-95"
+                >
+                  Log Meal
+                </button>
+                <button
+                  onClick={() => setPendingAnalysis(null)}
+                  className="px-5 bg-white/50 text-neutral-600 font-bold rounded-2xl hover:bg-white transition-colors"
+                >
+                  Discard
+                </button>
+              </div>
+            </motion.section>
+          )}
+        </AnimatePresence>
+
+        {/* Manual Search (Elegant implementation) */}
+        <section className="bg-white/40 backdrop-blur-md rounded-3xl p-2 shadow-sm border border-white/60">
           <button
             onClick={() => setSearchOpen((v) => !v)}
-            className="w-full flex items-center justify-between font-cond font-semibold text-white"
+            className="w-full flex items-center justify-between p-3 font-bold text-neutral-600 hover:text-neutral-900 transition-colors"
           >
-            <span>🔍 Search a food</span>
-            <span className="text-white/40 text-sm">{searchOpen ? 'close' : 'open'}</span>
+            <span className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              Search Database
+            </span>
+            <span className="text-2xl font-light text-neutral-400 leading-none">{searchOpen ? '−' : '+'}</span>
           </button>
-          <AnimatePresence initial={false}>
+          
+          <AnimatePresence>
             {searchOpen && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className="overflow-hidden"
+                className="overflow-hidden px-2"
               >
-                <div className="flex gap-2 mt-3">
+                <div className="flex gap-2 py-2">
                   <input
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && runSearch()}
-                    placeholder="e.g. banana"
-                    className="flex-1 px-3 py-2 rounded-xl bg-white/5 border border-white/15 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/30"
+                    placeholder="e.g. Avocado Toast"
+                    className="flex-1 px-4 py-3 rounded-2xl bg-white/60 border border-white text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
                   />
                   <button
                     onClick={runSearch}
-                    className="px-4 py-2 rounded-xl font-cond font-semibold text-sm text-ink bg-orb-rainbow"
+                    className="px-5 rounded-2xl font-bold text-white bg-neutral-800 hover:bg-neutral-900 transition-colors"
                   >
-                    {searching ? '…' : 'Go'}
+                    {searching ? '...' : 'Go'}
                   </button>
                 </div>
                 {searchResults.length > 0 && (
-                  <ul className="mt-3 space-y-2 max-h-48 overflow-y-auto">
+                  <ul className="mt-2 mb-2 space-y-2 max-h-60 overflow-y-auto pr-1">
                     {searchResults.map((food) => (
-                      <li key={food.fdcId} className="flex items-center justify-between text-sm gap-2 glass-pill rounded-xl px-3 py-2">
-                        <span className="truncate flex-1 text-white/85">{food.name}</span>
+                      <li key={food.fdcId} className="flex items-center justify-between bg-white/50 rounded-2xl p-3 border border-white/40">
+                        <span className="text-sm font-semibold text-neutral-700 truncate pr-2">{food.name}</span>
                         <button
                           onClick={() => addSearchResult(food, 100)}
-                          className="text-cyan whitespace-nowrap font-cond font-semibold"
+                          className="text-xs font-bold bg-orange-100 text-orange-600 px-3 py-1.5 rounded-full hover:bg-orange-200 transition-colors whitespace-nowrap"
                         >
                           + 100g
                         </button>
@@ -455,167 +538,149 @@ export default function DashboardPage() {
               </motion.div>
             )}
           </AnimatePresence>
-        </motion.section>
+        </section>
 
-        {/* Pending AI analysis confirmation */}
-        <AnimatePresence>
-          {pendingAnalysis && (
-            <motion.section
-              initial={{ opacity: 0, scale: 0.94, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.94 }}
-              transition={{ type: 'spring', stiffness: 260, damping: 22 }}
-              className="glass-card rounded-glass p-5 mb-5 relative overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-ring-rainbow opacity-[0.08] pointer-events-none" />
-              <h3 className="font-display text-lg text-white relative">Confirm what the AI saw</h3>
-              <p className="text-sm font-cond mt-1 text-white/60 relative">
-                Confidence: {pendingAnalysis.accuracy}% · Health score: {pendingAnalysis.health_score}/10
-              </p>
-              <ul className="text-sm mb-2 mt-3 font-cond text-white/80 space-y-1 relative">
-                {pendingAnalysis.foods.map((f, i) => (
-                  <li key={i} className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-orb-rainbow" />
-                    {f.name} (~{f.estimated_weight_g}g)
-                  </li>
-                ))}
-              </ul>
-              <p className="font-cond text-sm mb-3 text-white relative">
-                {pendingAnalysis.total.calories} kcal · P{pendingAnalysis.total.protein}g · C
-                {pendingAnalysis.total.carbs}g · F{pendingAnalysis.total.fat}g
-              </p>
-              <p className="text-sm italic mb-4 text-white/60 relative">{pendingAnalysis.recommendation}</p>
-              <div className="flex gap-2 relative">
-                <motion.button
-                  whileTap={{ scale: 0.96 }}
-                  onClick={confirmAnalysis}
-                  className="flex-1 bg-orb-rainbow text-ink font-cond font-semibold py-2.5 rounded-xl"
-                >
-                  Add to log
-                </motion.button>
-                <button
-                  onClick={() => setPendingAnalysis(null)}
-                  className="px-4 glass-pill text-white/70 rounded-xl font-cond"
-                >
-                  Discard
-                </button>
-              </div>
-            </motion.section>
-          )}
-        </AnimatePresence>
-
-        {analyzeError && (
-          <div className="glass-card rounded-2xl px-4 py-3 mb-5 text-sm font-cond text-coral">{analyzeError}</div>
-        )}
-
-        {/* Today's entries */}
+        {/* Today's Meals */}
         <section>
-          <h3 className="font-cond font-semibold text-lg mb-2 text-white/85">Logged today</h3>
-          {logs.length === 0 && (
-            <p className="text-white/40 text-sm font-cond">Nothing logged yet — tap the orb to add your first meal.</p>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-4 px-2">Today's Meals</h3>
+          
+          {logs.length === 0 ? (
+            <div className="text-center py-10 bg-white/30 rounded-3xl border border-white/40 border-dashed">
+              <p className="text-neutral-400 font-medium text-sm">Tap the AI orb below to scan your first meal.</p>
+            </div>
+          ) : (
+            <ul className="space-y-4">
+              <AnimatePresence initial={false}>
+                {logs.map((l) => {
+                  const isExpanded = expandedLogId === l.id;
+                  return (
+                    <motion.li
+                      key={l.id}
+                      layout
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.9, filter: 'blur(5px)' }}
+                      className="bg-white/50 backdrop-blur-md rounded-[24px] p-5 border border-white/60 shadow-sm cursor-pointer hover:bg-white/70 transition-colors"
+                      onClick={() => setExpandedLogId(isExpanded ? null : l.id)}
+                    >
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-orange-100 to-yellow-100 flex items-center justify-center text-2xl shrink-0 shadow-inner">
+                          {l.source === 'ai_photo' ? '✨' : '🥗'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-neutral-800 text-lg truncate">{l.name}</p>
+                          <div className="flex gap-2 items-center mt-0.5">
+                            <span className="text-sm font-bold text-orange-500">{Math.round(l.calories)} kcal</span>
+                            {l.health_score && (
+                              <span className="text-[10px] font-bold uppercase bg-lime-100 text-lime-700 px-2 py-0.5 rounded-md">
+                                Score: {l.health_score}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="pt-4 mt-4 border-t border-neutral-200/50">
+                              <div className="grid grid-cols-3 gap-2 text-center mb-4">
+                                <div className="bg-white/60 p-2 rounded-xl border border-white">
+                                  <span className="block text-[10px] font-bold uppercase text-neutral-400">Protein</span>
+                                  <span className="text-sm font-bold text-neutral-800">{Math.round(l.protein_g)}g</span>
+                                </div>
+                                <div className="bg-white/60 p-2 rounded-xl border border-white">
+                                  <span className="block text-[10px] font-bold uppercase text-neutral-400">Carbs</span>
+                                  <span className="text-sm font-bold text-neutral-800">{Math.round(l.carbs_g)}g</span>
+                                </div>
+                                <div className="bg-white/60 p-2 rounded-xl border border-white">
+                                  <span className="block text-[10px] font-bold uppercase text-neutral-400">Fat</span>
+                                  <span className="text-sm font-bold text-neutral-800">{Math.round(l.fat_g)}g</span>
+                                </div>
+                              </div>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); removeLog(l.id); }} 
+                                className="w-full text-xs font-bold uppercase tracking-wider text-red-400 hover:text-red-500 py-2 transition-colors"
+                              >
+                                Delete Entry
+                              </button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.li>
+                  );
+                })}
+              </AnimatePresence>
+            </ul>
           )}
-          <ul className="space-y-2">
-            <AnimatePresence initial={false}>
-              {logs.map((l) => (
-                <motion.li
-                  key={l.id}
-                  layout
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.85, filter: 'blur(6px)' }}
-                  transition={{ duration: 0.35 }}
-                  className="glass-card rounded-2xl p-3 flex items-center justify-between gap-3"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-full bg-orb-rainbow flex items-center justify-center text-lg shrink-0">
-                      {l.source === 'ai_photo' ? '📸' : '🥗'}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-cond font-semibold text-white truncate">{l.name}</p>
-                      <p className="text-white/45 text-xs font-cond">
-                        {Math.round(l.calories)} kcal · P{Math.round(l.protein_g)} C{Math.round(l.carbs_g)} F
-                        {Math.round(l.fat_g)}
-                      </p>
-                    </div>
-                  </div>
-                  <button onClick={() => removeLog(l.id)} className="text-white/30 hover:text-coral text-sm shrink-0 transition">
-                    Remove
-                  </button>
-                </motion.li>
-              ))}
-            </AnimatePresence>
-          </ul>
         </section>
       </div>
 
       {/* Hidden inputs used by the orb menu */}
-      <input
-        ref={cameraInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={handlePhoto}
-        className="hidden"
-      />
+      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handlePhoto} className="hidden" />
       <input ref={galleryInputRef} type="file" accept="image/*" onChange={handlePhoto} className="hidden" />
 
-      {/* Floating AI orb */}
-      <div className="fixed bottom-6 right-6 z-20 flex flex-col items-end gap-3">
+      {/* Floating AI Orb */}
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center">
         <AnimatePresence>
           {orbOpen && (
             <motion.div
-              initial={{ opacity: 0, y: 12, scale: 0.9 }}
+              initial={{ opacity: 0, y: 20, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 12, scale: 0.9 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 22 }}
-              className="glass-card rounded-2xl p-2 flex flex-col gap-1 min-w-[190px]"
+              exit={{ opacity: 0, y: 20, scale: 0.9 }}
+              className="absolute bottom-24 bg-white/80 backdrop-blur-xl p-2 rounded-3xl shadow-xl border border-white/80 flex flex-col gap-1 min-w-[200px]"
             >
-              <button
-                onClick={() => cameraInputRef.current?.click()}
-                className="text-left px-3 py-2 rounded-xl text-sm font-cond text-white hover:bg-white/10 transition"
-              >
-                📷 Take Photo
+              <button onClick={() => cameraInputRef.current?.click()} className="flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold text-neutral-700 hover:bg-white transition-colors">
+                <span className="text-lg">📷</span> Take Photo
               </button>
-              <button
-                onClick={() => galleryInputRef.current?.click()}
-                className="text-left px-3 py-2 rounded-xl text-sm font-cond text-white hover:bg-white/10 transition"
-              >
-                🖼️ Choose from Gallery
+              <button onClick={() => galleryInputRef.current?.click()} className="flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold text-neutral-700 hover:bg-white transition-colors">
+                <span className="text-lg">🖼️</span> Open Gallery
               </button>
             </motion.div>
           )}
         </AnimatePresence>
 
         <motion.button
-          onClick={() => setOrbOpen((v) => !v)}
-          animate={{ y: orbOpen ? 0 : [0, -8, 0] }}
-          transition={{ duration: 4.5, repeat: orbOpen ? 0 : Infinity, ease: 'easeInOut' }}
+          onClick={() => setOrbOpen(!orbOpen)}
+          animate={{ 
+            y: orbOpen ? 0 : [0, -8, 0],
+            scale: analyzing ? [1, 1.1, 1] : 1
+          }}
+          transition={{ duration: analyzing ? 1.5 : 4, repeat: orbOpen ? 0 : Infinity, ease: 'easeInOut' }}
           whileTap={{ scale: 0.9 }}
-          className="relative w-16 h-16 rounded-full bg-orb-rainbow flex items-center justify-center shadow-[0_0_40px_rgba(124,107,255,0.55)]"
+          className="relative w-16 h-16 rounded-full p-[3px] shadow-[0_10px_40px_rgba(249,115,22,0.3)] bg-gradient-to-tr from-orange-400 via-yellow-400 to-lime-400 z-50 group"
         >
-          <span className="absolute inset-0 rounded-full bg-orb-rainbow blur-xl opacity-70 animate-glow-pulse" />
-          <motion.span
-            animate={{ rotate: orbOpen ? 45 : 0 }}
-            className="relative text-2xl text-ink font-bold"
-          >
-            {analyzing ? '✨' : '+'}
-          </motion.span>
+          <div className="w-full h-full bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-tr from-orange-400 to-lime-400 opacity-0 group-hover:opacity-20 transition-opacity duration-300" />
+            <motion.div animate={{ rotate: orbOpen ? 45 : 0 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>
+              {analyzing ? (
+                <div className="w-6 h-6 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
+              ) : (
+                <svg className="w-6 h-6 text-neutral-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+              )}
+            </motion.div>
+          </div>
         </motion.button>
-        {analyzing && (
-          <p className="font-cond text-[11px] text-white/60 tracking-wide -mt-1">Scanning your meal…</p>
-        )}
       </div>
 
-      {/* Success ripple toast */}
+      {/* Success Notification */}
       <AnimatePresence>
         {justAdded && (
           <motion.div
-            initial={{ opacity: 0, y: -12, scale: 0.9 }}
+            initial={{ opacity: 0, y: -20, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -12, scale: 0.9 }}
-            className="fixed top-6 left-1/2 -translate-x-1/2 z-30 glass-card rounded-full px-4 py-2 text-sm font-cond text-white"
+            exit={{ opacity: 0, y: -20, scale: 0.9 }}
+            className="fixed top-8 left-1/2 -translate-x-1/2 z-50 bg-neutral-900/90 backdrop-blur-md text-white px-6 py-3 rounded-full text-sm font-bold shadow-2xl flex items-center gap-2 border border-neutral-700"
           >
-            ✨ Added to today's log
+            <span className="text-lime-400">✓</span> Meal logged successfully
           </motion.div>
         )}
       </AnimatePresence>
