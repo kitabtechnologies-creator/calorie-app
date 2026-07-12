@@ -1,0 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Barlow+Condensed:wght@500;600;700&family=Work+Sans:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+  background: #12151a;
+  color: #f5f1e6;
+}
+
+body {
+  font-family: 'Work Sans', sans-serif;
+}
+
+.font-display { font-family: 'Archivo Black', Impact, sans-serif; }
+.font-cond { font-family: 'Barlow Condensed', sans-serif; }
+
+/* --- Nutrition Facts label, the signature component --- */
+.nutri-label {
+  background: #f5f1e6;
+  color: #12151a;
+  border: 3px solid #12151a;
+  padding: 14px 16px 16px;
+  font-family: 'Barlow Condensed', sans-serif;
+  border-radius: 2px;
+}
+.nutri-label .thick { border-top: 8px solid #12151a; margin: 6px 0; }
+.nutri-label .thin { border-top: 1px solid #12151a; margin: 4px 0; }
+.nutri-label .med { border-top: 4px solid #12151a; margin: 5px 0; }
+.nutri-label .row { display: flex; justify-content: space-between; align-items: baseline; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #2a303a; border-radius: 4px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
