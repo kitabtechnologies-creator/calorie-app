@@ -70,11 +70,20 @@ function useCountUp(value: number, duration = 700) {
   return display;
 }
 
+// Distinct, bright rainbow colors for macros
 const MACROS: { key: 'protein' | 'carbs' | 'fat'; label: string; from: string; to: string; targetKey: keyof Profile }[] = [
-  { key: 'protein', label: 'Protein', from: '#fb923c', to: '#f97316', targetKey: 'target_protein_g' }, // Orange
-  { key: 'carbs', label: 'Carbs', from: '#fcd34d', to: '#eab308', targetKey: 'target_carbs_g' },       // Yellow
-  { key: 'fat', label: 'Fat', from: '#a3e635', to: '#84cc16', targetKey: 'target_fat_g' },             // Lime
+  { key: 'protein', label: 'Protein', from: '#FF3B30', to: '#FF9500', targetKey: 'target_protein_g' }, // Red to Orange
+  { key: 'carbs', label: 'Carbs', from: '#4CD964', to: '#5AC8FA', targetKey: 'target_carbs_g' },       // Green to Cyan
+  { key: 'fat', label: 'Fat', from: '#007AFF', to: '#5856D6', targetKey: 'target_fat_g' },             // Blue to Purple
 ];
+
+// Reusable Noise Texture Component (Arc Style)
+const NoiseOverlay = () => (
+  <div 
+    className="absolute inset-0 pointer-events-none opacity-[0.12] mix-blend-overlay z-0 rounded-inherit"
+    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}
+  />
+);
 
 function MacroCapsule({
   label,
@@ -93,20 +102,20 @@ function MacroCapsule({
   const pct = target ? Math.min(100, (value / target) * 100) : 0;
   
   return (
-    <div className="bg-white/50 backdrop-blur-xl rounded-[32px] p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/60 transition-transform hover:-translate-y-1.5 duration-300">
-      <div className="flex justify-between items-baseline mb-3">
-        <p className="text-[10px] uppercase font-bold tracking-widest text-neutral-400">{label}</p>
-        <p className="font-semibold text-lg text-neutral-800">
+    <div className="bg-white rounded-[28px] p-5 shadow-[0_8px_40px_rgb(0,0,0,0.06)] border border-neutral-100 flex flex-col justify-between">
+      <div className="flex flex-col mb-4">
+        <p className="text-[11px] uppercase font-black tracking-widest text-neutral-400 mb-1">{label}</p>
+        <p className="font-black text-2xl text-black tracking-tight">
           {Math.round(animated)}
-          <span className="text-neutral-400 text-xs font-medium ml-1">/{target || '—'}g</span>
+          <span className="text-neutral-400 text-sm ml-0.5">/{target || '—'}g</span>
         </p>
       </div>
-      <div className="h-2.5 w-full rounded-full bg-neutral-100/80 overflow-hidden inner-shadow">
+      <div className="h-3 w-full rounded-full bg-neutral-100 overflow-hidden relative">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
           transition={{ duration: 1, ease: "easeOut" }}
-          className="h-full rounded-full"
+          className="absolute top-0 left-0 h-full rounded-full"
           style={{ background: `linear-gradient(90deg, ${from}, ${to})` }}
         />
       </div>
@@ -174,10 +183,9 @@ export default function DashboardPage() {
   const target = profile?.target_calories ?? 2000;
   const pct = target > 0 ? Math.max(0, Math.min(1, totals.calories / target)) : 0;
   const remaining = Math.max(0, target - Math.round(totals.calories));
-
   const animatedCalories = useCountUp(totals.calories);
   
-  const R = 110;
+  const R = 120;
   const CIRC = 2 * Math.PI * R;
 
   async function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -295,73 +303,70 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
+      <main className="min-h-screen bg-white flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-full border-4 border-orange-200 border-t-orange-500 animate-spin" />
-          <p className="text-xs uppercase tracking-widest font-bold text-neutral-400">Waking up AI...</p>
+          <div className="w-12 h-12 rounded-full border-4 border-neutral-100 border-t-[#007AFF] animate-spin" />
         </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen relative overflow-hidden bg-[#FAF8F5] selection:bg-orange-200 selection:text-orange-900">
-      {/* Premium Layered Background */}
-      <div className="fixed inset-0 -z-50 pointer-events-none">
+    <main className="min-h-screen relative overflow-hidden bg-white selection:bg-[#FF3B30]/20 selection:text-black">
+      
+      {/* Background Rainbow Stream (Blurred, passing through) */}
+      <div className="fixed inset-0 -z-50 pointer-events-none overflow-hidden bg-white">
+        <NoiseOverlay />
         <motion.div 
-          animate={{ scale: [1, 1.05, 1], rotate: [0, 5, 0] }}
-          transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
-          className="absolute top-[-20%] left-[-10%] w-[80vw] h-[80vw] rounded-full bg-gradient-to-br from-orange-300/20 to-yellow-300/10 blur-[120px]" 
-        />
-        <motion.div 
-          animate={{ scale: [1, 1.1, 1], rotate: [0, -5, 0] }}
+          animate={{ x: ["-50%", "0%", "-50%"], y: ["-10%", "10%", "-10%"] }}
           transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-          className="absolute bottom-[-10%] right-[-10%] w-[70vw] h-[70vw] rounded-full bg-gradient-to-tr from-lime-300/20 to-yellow-200/20 blur-[100px]" 
+          className="absolute top-[10%] left-[-20%] w-[150vw] h-[40vh] bg-gradient-to-r from-[#FF3B30] via-[#FFCC00] to-[#4CD964] opacity-[0.15] blur-[100px] rounded-full rotate-12" 
         />
-        {/* Subtle Paper Grain */}
-        <div className="absolute inset-0 opacity-[0.025] mix-blend-multiply bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPgo8cmVjdCB3aWR0aD0iNCIgaGVpZHRoPSI0IiBmaWxsPSIjMDAwIiBmaWxsLW9wYWNpdHk9Ii41Ii8+Cjwvc3ZnPg==')]" />
+        <motion.div 
+          animate={{ x: ["0%", "-50%", "0%"], y: ["10%", "-10%", "10%"] }}
+          transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+          className="absolute bottom-[10%] right-[-20%] w-[150vw] h-[40vh] bg-gradient-to-l from-[#5856D6] via-[#007AFF] to-[#5AC8FA] opacity-[0.15] blur-[100px] rounded-full -rotate-12" 
+        />
       </div>
 
-      <div className="relative z-10 px-6 pt-12 pb-32 max-w-lg mx-auto space-y-10">
+      <div className="relative z-10 px-6 pt-16 pb-40 max-w-lg mx-auto space-y-12">
         
-        {/* Top Header & AI Insight */}
-        <header className="space-y-3">
-          <div className="flex justify-between items-start">
-            <h1 className="text-4xl font-light text-neutral-400 tracking-tight">
-              Good Morning,<br />
-              <span className="font-semibold text-neutral-900">{profile?.name || 'Sunnat'}</span>
+        {/* Apple Music Style Header */}
+        <header className="space-y-4">
+          <div className="flex justify-between items-end">
+            <h1 className="text-5xl font-black text-black tracking-tighter leading-[1.05]">
+              <span className="text-neutral-400 font-bold text-2xl tracking-normal block mb-1">Good Morning,</span>
+              {profile?.name || 'Sunnat'}
             </h1>
-            <button
-              onClick={async () => {
-                await supabase.auth.signOut();
-                window.location.href = '/login';
-              }}
-              className="text-xs font-bold uppercase tracking-wider text-neutral-400 hover:text-orange-500 transition-colors"
+            <Link 
+              href="/profile" 
+              className="bg-black text-white px-5 py-2.5 rounded-full font-bold text-sm tracking-wide shadow-lg hover:scale-105 transition-transform active:scale-95"
             >
-              Log Out
-            </button>
+              Profile
+            </Link>
           </div>
-          <p className="text-lg font-medium text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-500">
+          <p className="text-lg font-bold text-neutral-500 tracking-tight">
             {remaining > 0 
-              ? `You're ${remaining} kcal away from today's goal.`
-              : `You've perfectly met your nutrition goals today.`}
+              ? `You have ${remaining} kcal remaining today.`
+              : `You've met your daily nutrition goals.`}
           </p>
         </header>
 
-        {/* Week Strip Component */}
-        <section className="flex justify-between items-center bg-white/40 backdrop-blur-md rounded-full p-2 border border-white/60 shadow-sm">
+        {/* Minimalist Week Strip */}
+        <section className="flex justify-between items-center px-2">
           {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, idx) => {
-            const isToday = idx === new Date().getDay() - 1; // Simplistic today logic
+            const isToday = idx === new Date().getDay() - 1; 
             return (
               <div 
                 key={idx} 
-                className={`w-10 h-10 flex items-center justify-center rounded-full text-sm font-bold transition-all ${
+                className={`w-11 h-11 flex items-center justify-center rounded-full text-[15px] font-black transition-all ${
                   isToday 
-                    ? 'bg-gradient-to-tr from-orange-400 to-yellow-400 text-white shadow-md ring-2 ring-white scale-110' 
-                    : 'text-neutral-400 hover:bg-white/50'
+                    ? 'bg-gradient-to-tr from-[#FF3B30] via-[#FF9500] to-[#FFCC00] text-white shadow-xl scale-125 z-10 relative' 
+                    : 'text-neutral-300 bg-neutral-50'
                 }`}
               >
-                {day}
+                {isToday && <NoiseOverlay />}
+                <span className="relative z-10">{day}</span>
               </div>
             );
           })}
@@ -371,34 +376,29 @@ export default function DashboardPage() {
         <motion.section 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="flex justify-center py-4"
+          className="flex justify-center py-6"
         >
-          <div className="relative w-[280px] h-[280px] flex items-center justify-center">
-            {/* Soft Ambient Glow Behind Ring */}
-            <motion.div 
-              animate={{ scale: [1, 1.05, 1], opacity: [0.3, 0.5, 0.3] }}
-              transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute inset-[-20px] rounded-full bg-gradient-to-tr from-orange-400 via-yellow-400 to-lime-400 blur-3xl opacity-30" 
-            />
-            
-            <svg viewBox="0 0 240 240" className="relative w-full h-full -rotate-90 drop-shadow-sm">
+          <div className="relative w-[320px] h-[320px] flex items-center justify-center">
+            <svg viewBox="0 0 280 280" className="relative w-full h-full -rotate-90 drop-shadow-2xl">
               <defs>
-                <linearGradient id="liquidRing" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#f97316" />   {/* Orange 500 */}
-                  <stop offset="50%" stopColor="#facc15" />  {/* Yellow 400 */}
-                  <stop offset="100%" stopColor="#84cc16" /> {/* Lime 500 */}
+                <linearGradient id="fullRainbow" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#FF3B30" />
+                  <stop offset="25%" stopColor="#FF9500" />
+                  <stop offset="50%" stopColor="#FFCC00" />
+                  <stop offset="75%" stopColor="#4CD964" />
+                  <stop offset="100%" stopColor="#007AFF" />
                 </linearGradient>
               </defs>
-              {/* Background Track */}
-              <circle cx="120" cy="120" r={R} fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="16" />
-              {/* Progress Track */}
+              {/* Clean Background Track */}
+              <circle cx="140" cy="140" r={R} fill="none" stroke="#F5F5F7" strokeWidth="24" />
+              {/* Full Rainbow Progress Track */}
               <motion.circle
-                cx="120"
-                cy="120"
+                cx="140"
+                cy="140"
                 r={R}
                 fill="none"
-                stroke="url(#liquidRing)"
-                strokeWidth="16"
+                stroke="url(#fullRainbow)"
+                strokeWidth="24"
                 strokeLinecap="round"
                 strokeDasharray={CIRC}
                 initial={{ strokeDashoffset: CIRC }}
@@ -412,12 +412,12 @@ export default function DashboardPage() {
                 key={animatedCalories}
                 initial={{ y: -5, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                className="text-6xl font-black text-neutral-800 tracking-tighter tabular-nums"
+                className="text-7xl font-black text-black tracking-tighter tabular-nums"
               >
                 {Math.round(animatedCalories)}
               </motion.span>
-              <span className="text-xs font-bold uppercase tracking-widest text-neutral-400 mt-1">
-                / {target} Goal
+              <span className="text-sm font-black uppercase tracking-widest text-neutral-400 mt-2">
+                / {target} kcal
               </span>
             </div>
           </div>
@@ -444,57 +444,59 @@ export default function DashboardPage() {
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95, filter: "blur(8px)" }}
-              className="bg-white/70 backdrop-blur-xl rounded-[2rem] p-6 shadow-lg border border-white relative overflow-hidden"
+              className="bg-black rounded-[32px] p-8 shadow-2xl relative overflow-hidden text-white"
             >
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-400 via-yellow-400 to-lime-400" />
-              <h3 className="text-xl font-bold text-neutral-800 mb-1">We detected your meal</h3>
-              <p className="text-sm font-medium text-neutral-500 mb-4">
-                Confidence: {pendingAnalysis.accuracy}% • {pendingAnalysis.total.calories} kcal
-              </p>
-              
-              <div className="flex flex-wrap gap-2 mb-5">
-                {pendingAnalysis.foods.map((f, i) => (
-                  <div key={i} className="bg-orange-100 text-orange-800 text-sm font-semibold px-3 py-1.5 rounded-full border border-orange-200">
-                    {f.name} <span className="opacity-50 ml-1">{f.estimated_weight_g}g</span>
-                  </div>
-                ))}
-              </div>
-
-              {pendingAnalysis.recommendation && (
-                <p className="text-sm text-neutral-600 bg-white/50 p-3 rounded-2xl border border-white mb-5 italic">
-                  "{pendingAnalysis.recommendation}"
+              <NoiseOverlay />
+              <div className="relative z-10">
+                <h3 className="text-2xl font-black mb-2 tracking-tight">We detected your meal</h3>
+                <p className="text-sm font-medium text-neutral-400 mb-6">
+                  Confidence: {pendingAnalysis.accuracy}% • {pendingAnalysis.total.calories} kcal
                 </p>
-              )}
+                
+                <div className="flex flex-wrap gap-2 mb-6">
+                  {pendingAnalysis.foods.map((f, i) => (
+                    <div key={i} className="bg-white/10 backdrop-blur-md text-white text-sm font-bold px-4 py-2 rounded-full border border-white/10">
+                      {f.name} <span className="opacity-50 ml-1 font-normal">{f.estimated_weight_g}g</span>
+                    </div>
+                  ))}
+                </div>
 
-              <div className="flex gap-3">
-                <button
-                  onClick={confirmAnalysis}
-                  className="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold py-3 rounded-2xl shadow-md hover:shadow-lg transition-all active:scale-95"
-                >
-                  Log Meal
-                </button>
-                <button
-                  onClick={() => setPendingAnalysis(null)}
-                  className="px-5 bg-white/50 text-neutral-600 font-bold rounded-2xl hover:bg-white transition-colors"
-                >
-                  Discard
-                </button>
+                {pendingAnalysis.recommendation && (
+                  <p className="text-sm text-neutral-300 bg-white/5 p-4 rounded-2xl mb-6 font-medium leading-relaxed">
+                    "{pendingAnalysis.recommendation}"
+                  </p>
+                )}
+
+                <div className="flex gap-4">
+                  <button
+                    onClick={confirmAnalysis}
+                    className="flex-1 bg-gradient-to-r from-[#FF3B30] to-[#FF9500] text-white font-black text-lg py-4 rounded-2xl shadow-lg hover:scale-[1.02] transition-transform active:scale-95"
+                  >
+                    Log Meal
+                  </button>
+                  <button
+                    onClick={() => setPendingAnalysis(null)}
+                    className="px-6 bg-white/10 text-white font-bold rounded-2xl hover:bg-white/20 transition-colors"
+                  >
+                    Discard
+                  </button>
+                </div>
               </div>
             </motion.section>
           )}
         </AnimatePresence>
 
-        {/* Manual Search (Elegant implementation) */}
-        <section className="bg-white/40 backdrop-blur-md rounded-3xl p-2 shadow-sm border border-white/60">
+        {/* Minimalist Search */}
+        <section className="bg-neutral-50 rounded-[32px] p-2 shadow-sm border border-neutral-100">
           <button
             onClick={() => setSearchOpen((v) => !v)}
-            className="w-full flex items-center justify-between p-3 font-bold text-neutral-600 hover:text-neutral-900 transition-colors"
+            className="w-full flex items-center justify-between p-4 font-black text-black hover:opacity-70 transition-opacity"
           >
-            <span className="flex items-center gap-2">
-              <svg className="w-5 h-5 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            <span className="flex items-center gap-3 text-lg tracking-tight">
+              <svg className="w-6 h-6 text-[#007AFF]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
               Search Database
             </span>
-            <span className="text-2xl font-light text-neutral-400 leading-none">{searchOpen ? '−' : '+'}</span>
+            <span className="text-3xl font-light text-neutral-400 leading-none">{searchOpen ? '−' : '+'}</span>
           </button>
           
           <AnimatePresence>
@@ -503,31 +505,31 @@ export default function DashboardPage() {
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden px-2"
+                className="overflow-hidden px-3"
               >
-                <div className="flex gap-2 py-2">
+                <div className="flex gap-3 py-3">
                   <input
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && runSearch()}
                     placeholder="e.g. Avocado Toast"
-                    className="flex-1 px-4 py-3 rounded-2xl bg-white/60 border border-white text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                    className="flex-1 px-5 py-4 rounded-2xl bg-white border-none shadow-sm text-black font-medium placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]"
                   />
                   <button
                     onClick={runSearch}
-                    className="px-5 rounded-2xl font-bold text-white bg-neutral-800 hover:bg-neutral-900 transition-colors"
+                    className="px-6 rounded-2xl font-black text-white bg-black hover:bg-neutral-800 transition-colors"
                   >
                     {searching ? '...' : 'Go'}
                   </button>
                 </div>
                 {searchResults.length > 0 && (
-                  <ul className="mt-2 mb-2 space-y-2 max-h-60 overflow-y-auto pr-1">
+                  <ul className="mt-3 mb-4 space-y-2 max-h-60 overflow-y-auto pr-2">
                     {searchResults.map((food) => (
-                      <li key={food.fdcId} className="flex items-center justify-between bg-white/50 rounded-2xl p-3 border border-white/40">
-                        <span className="text-sm font-semibold text-neutral-700 truncate pr-2">{food.name}</span>
+                      <li key={food.fdcId} className="flex items-center justify-between bg-white rounded-2xl p-4 shadow-sm border border-neutral-100">
+                        <span className="text-base font-bold text-black truncate pr-4">{food.name}</span>
                         <button
                           onClick={() => addSearchResult(food, 100)}
-                          className="text-xs font-bold bg-orange-100 text-orange-600 px-3 py-1.5 rounded-full hover:bg-orange-200 transition-colors whitespace-nowrap"
+                          className="text-sm font-black bg-neutral-100 text-black px-4 py-2 rounded-full hover:bg-[#4CD964] hover:text-white transition-colors whitespace-nowrap"
                         >
                           + 100g
                         </button>
@@ -540,16 +542,16 @@ export default function DashboardPage() {
           </AnimatePresence>
         </section>
 
-        {/* Today's Meals */}
+        {/* Today's Meals (Apple Music Tracklist Style) */}
         <section>
-          <h3 className="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-4 px-2">Today's Meals</h3>
+          <h3 className="text-sm font-black text-black tracking-tight mb-6 px-2">Today's Meals</h3>
           
           {logs.length === 0 ? (
-            <div className="text-center py-10 bg-white/30 rounded-3xl border border-white/40 border-dashed">
-              <p className="text-neutral-400 font-medium text-sm">Tap the AI orb below to scan your first meal.</p>
+            <div className="text-center py-12 bg-neutral-50 rounded-[32px] border border-neutral-200 border-dashed">
+              <p className="text-neutral-500 font-bold text-sm">Tap the rainbow orb below to scan your first meal.</p>
             </div>
           ) : (
-            <ul className="space-y-4">
+            <ul className="space-y-3">
               <AnimatePresence initial={false}>
                 {logs.map((l) => {
                   const isExpanded = expandedLogId === l.id;
@@ -560,19 +562,19 @@ export default function DashboardPage() {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.9, filter: 'blur(5px)' }}
-                      className="bg-white/50 backdrop-blur-md rounded-[24px] p-5 border border-white/60 shadow-sm cursor-pointer hover:bg-white/70 transition-colors"
+                      className="bg-white rounded-[28px] p-5 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-neutral-100 cursor-pointer hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-all"
                       onClick={() => setExpandedLogId(isExpanded ? null : l.id)}
                     >
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-orange-100 to-yellow-100 flex items-center justify-center text-2xl shrink-0 shadow-inner">
+                      <div className="flex items-center justify-between gap-5">
+                        <div className="w-14 h-14 rounded-2xl bg-neutral-50 flex items-center justify-center text-2xl shrink-0">
                           {l.source === 'ai_photo' ? '✨' : '🥗'}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-bold text-neutral-800 text-lg truncate">{l.name}</p>
-                          <div className="flex gap-2 items-center mt-0.5">
-                            <span className="text-sm font-bold text-orange-500">{Math.round(l.calories)} kcal</span>
+                          <p className="font-black text-black text-xl tracking-tight truncate">{l.name}</p>
+                          <div className="flex gap-3 items-center mt-1">
+                            <span className="text-sm font-bold text-neutral-500">{Math.round(l.calories)} kcal</span>
                             {l.health_score && (
-                              <span className="text-[10px] font-bold uppercase bg-lime-100 text-lime-700 px-2 py-0.5 rounded-md">
+                              <span className="text-[11px] font-black uppercase bg-[#4CD964]/10 text-[#4CD964] px-2.5 py-1 rounded-lg">
                                 Score: {l.health_score}
                               </span>
                             )}
@@ -588,24 +590,24 @@ export default function DashboardPage() {
                             exit={{ height: 0, opacity: 0 }}
                             className="overflow-hidden"
                           >
-                            <div className="pt-4 mt-4 border-t border-neutral-200/50">
-                              <div className="grid grid-cols-3 gap-2 text-center mb-4">
-                                <div className="bg-white/60 p-2 rounded-xl border border-white">
-                                  <span className="block text-[10px] font-bold uppercase text-neutral-400">Protein</span>
-                                  <span className="text-sm font-bold text-neutral-800">{Math.round(l.protein_g)}g</span>
+                            <div className="pt-6 mt-4 border-t border-neutral-100">
+                              <div className="grid grid-cols-3 gap-3 text-center mb-5">
+                                <div className="bg-neutral-50 p-3 rounded-2xl">
+                                  <span className="block text-[11px] font-black uppercase text-neutral-400 mb-1">Protein</span>
+                                  <span className="text-lg font-black text-black">{Math.round(l.protein_g)}g</span>
                                 </div>
-                                <div className="bg-white/60 p-2 rounded-xl border border-white">
-                                  <span className="block text-[10px] font-bold uppercase text-neutral-400">Carbs</span>
-                                  <span className="text-sm font-bold text-neutral-800">{Math.round(l.carbs_g)}g</span>
+                                <div className="bg-neutral-50 p-3 rounded-2xl">
+                                  <span className="block text-[11px] font-black uppercase text-neutral-400 mb-1">Carbs</span>
+                                  <span className="text-lg font-black text-black">{Math.round(l.carbs_g)}g</span>
                                 </div>
-                                <div className="bg-white/60 p-2 rounded-xl border border-white">
-                                  <span className="block text-[10px] font-bold uppercase text-neutral-400">Fat</span>
-                                  <span className="text-sm font-bold text-neutral-800">{Math.round(l.fat_g)}g</span>
+                                <div className="bg-neutral-50 p-3 rounded-2xl">
+                                  <span className="block text-[11px] font-black uppercase text-neutral-400 mb-1">Fat</span>
+                                  <span className="text-lg font-black text-black">{Math.round(l.fat_g)}g</span>
                                 </div>
                               </div>
                               <button 
                                 onClick={(e) => { e.stopPropagation(); removeLog(l.id); }} 
-                                className="w-full text-xs font-bold uppercase tracking-wider text-red-400 hover:text-red-500 py-2 transition-colors"
+                                className="w-full text-sm font-black bg-[#FF3B30]/10 text-[#FF3B30] hover:bg-[#FF3B30] hover:text-white py-4 rounded-2xl transition-colors"
                               >
                                 Delete Entry
                               </button>
@@ -622,25 +624,25 @@ export default function DashboardPage() {
         </section>
       </div>
 
-      {/* Hidden inputs used by the orb menu */}
+      {/* Hidden inputs */}
       <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handlePhoto} className="hidden" />
       <input ref={galleryInputRef} type="file" accept="image/*" onChange={handlePhoto} className="hidden" />
 
-      {/* Floating AI Orb */}
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center">
+      {/* Floating Rainbow Texture Orb */}
+      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center">
         <AnimatePresence>
           {orbOpen && (
             <motion.div
               initial={{ opacity: 0, y: 20, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.9 }}
-              className="absolute bottom-24 bg-white/80 backdrop-blur-xl p-2 rounded-3xl shadow-xl border border-white/80 flex flex-col gap-1 min-w-[200px]"
+              className="absolute bottom-28 bg-white p-3 rounded-[32px] shadow-2xl border border-neutral-100 flex flex-col gap-2 min-w-[220px]"
             >
-              <button onClick={() => cameraInputRef.current?.click()} className="flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold text-neutral-700 hover:bg-white transition-colors">
-                <span className="text-lg">📷</span> Take Photo
+              <button onClick={() => cameraInputRef.current?.click()} className="flex items-center gap-4 px-5 py-4 rounded-2xl text-base font-black text-black hover:bg-neutral-50 transition-colors">
+                <span className="text-xl">📷</span> Camera
               </button>
-              <button onClick={() => galleryInputRef.current?.click()} className="flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold text-neutral-700 hover:bg-white transition-colors">
-                <span className="text-lg">🖼️</span> Open Gallery
+              <button onClick={() => galleryInputRef.current?.click()} className="flex items-center gap-4 px-5 py-4 rounded-2xl text-base font-black text-black hover:bg-neutral-50 transition-colors">
+                <span className="text-xl">🖼️</span> Gallery
               </button>
             </motion.div>
           )}
@@ -649,38 +651,40 @@ export default function DashboardPage() {
         <motion.button
           onClick={() => setOrbOpen(!orbOpen)}
           animate={{ 
-            y: orbOpen ? 0 : [0, -8, 0],
-            scale: analyzing ? [1, 1.1, 1] : 1
+            scale: analyzing ? [1, 1.1, 1] : 1,
+            rotate: orbOpen ? 45 : 0
           }}
-          transition={{ duration: analyzing ? 1.5 : 4, repeat: orbOpen ? 0 : Infinity, ease: 'easeInOut' }}
+          transition={{ duration: analyzing ? 1.5 : 0.4, repeat: analyzing ? Infinity : 0, type: "spring", stiffness: 300, damping: 20 }}
           whileTap={{ scale: 0.9 }}
-          className="relative w-16 h-16 rounded-full p-[3px] shadow-[0_10px_40px_rgba(249,115,22,0.3)] bg-gradient-to-tr from-orange-400 via-yellow-400 to-lime-400 z-50 group"
+          className="relative w-20 h-20 rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.15)] flex items-center justify-center overflow-hidden z-50"
         >
-          <div className="w-full h-full bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-tr from-orange-400 to-lime-400 opacity-0 group-hover:opacity-20 transition-opacity duration-300" />
-            <motion.div animate={{ rotate: orbOpen ? 45 : 0 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>
-              {analyzing ? (
-                <div className="w-6 h-6 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
-              ) : (
-                <svg className="w-6 h-6 text-neutral-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-              )}
-            </motion.div>
+          {/* Base Arc-style Rainbow Gradient */}
+          <div className="absolute inset-0 bg-gradient-to-tr from-[#FF3B30] via-[#FFCC00] to-[#007AFF]" />
+          {/* Noise layer directly on the orb */}
+          <NoiseOverlay />
+          
+          <div className="relative z-10">
+            {analyzing ? (
+              <div className="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+            )}
           </div>
         </motion.button>
       </div>
 
-      {/* Success Notification */}
+      {/* Minimalist Success Toast */}
       <AnimatePresence>
         {justAdded && (
           <motion.div
             initial={{ opacity: 0, y: -20, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -20, scale: 0.9 }}
-            className="fixed top-8 left-1/2 -translate-x-1/2 z-50 bg-neutral-900/90 backdrop-blur-md text-white px-6 py-3 rounded-full text-sm font-bold shadow-2xl flex items-center gap-2 border border-neutral-700"
+            className="fixed top-12 left-1/2 -translate-x-1/2 z-50 bg-black text-white px-8 py-4 rounded-full text-sm font-black shadow-2xl flex items-center gap-3"
           >
-            <span className="text-lime-400">✓</span> Meal logged successfully
+            <span className="text-[#4CD964]">✓</span> Logged successfully
           </motion.div>
         )}
       </AnimatePresence>
