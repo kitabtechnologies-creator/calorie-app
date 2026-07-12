@@ -33,6 +33,39 @@ body {
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: #2a303a; border-radius: 4px; }
 
+/* --- Premium AI dashboard: glassmorphism + aurora system --- */
+.aurora-page {
+  position: relative;
+  min-height: 100vh;
+  background: #0d0f14;
+  overflow-x: hidden;
+}
+
+.glass-card {
+  background: linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+  border: 1px solid rgba(255,255,255,0.12);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.glass-pill {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.text-glow {
+  text-shadow: 0 0 30px rgba(255,255,255,0.15);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-breathe, .animate-float, .animate-spin-slow, .animate-spin-slow-reverse, .animate-glow-pulse {
+    animation: none !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }
