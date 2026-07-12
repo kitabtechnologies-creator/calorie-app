@@ -339,7 +339,7 @@ export default function DashboardPage() {
               {profile?.name || 'Sunnat'}
             </h1>
             <Link 
-              href="/profile" 
+              href="/history" 
               className="bg-black text-white px-5 py-2.5 rounded-full font-bold text-sm tracking-wide shadow-lg hover:scale-105 transition-transform active:scale-95"
             >
               Profile
